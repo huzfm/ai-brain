@@ -1,65 +1,123 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
 
 export default function Home() {
+  const [notes, setNotes] = useState("");
+  const [message, setMessage] = useState("");
+  const [chat, setChat] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const sendMessage = async () => {
+  if (!message) return;
+
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message, notes }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error);
+      return;
+    }
+
+    setChat((prev) => [
+      ...prev,
+      { role: "user", content: message },
+      {
+        role: "assistant",
+        content: data.answer || data.result,
+        extra: data.meetLink,
+      },
+    ]);
+
+  } catch (err) {
+    alert("Something went wrong");
+  }
+
+  setMessage("");
+  setLoading(false);
+};
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex h-screen bg-gray-950 text-white">
+
+      {/* Sidebar */}
+      <div className="w-80 border-r border-gray-800 p-4 space-y-4">
+        <h1 className="text-xl font-bold">🧠 AI Brain</h1>
+
+        <textarea
+          placeholder="Paste your notes or upload data..."
+          className="w-full h-40 p-3 bg-gray-900 border border-gray-700 rounded"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+
+        <div className="text-sm text-gray-400">
+          Add your knowledge here. AI will answer from this.
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+
+      {/* Chat Area */}
+      <div className="flex flex-col flex-1">
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {chat.map((msg, i) => (
+            <div key={i} className={`max-w-xl ${msg.role === "user" ? "ml-auto text-right" : ""}`}>
+              
+              <div className={`p-4 rounded-xl ${
+                msg.role === "user"
+                  ? "bg-blue-600"
+                  : "bg-gray-800"
+              }`}>
+                {msg.content}
+              </div>
+
+              {/* Extra (like Meet link) */}
+              {msg.extra && (
+                <a
+                  href={msg.extra}
+                  target="_blank"
+                  className="text-blue-400 text-sm"
+                >
+                  Join Meet
+                </a>
+              )}
+            </div>
+          ))}
+
+          {loading && (
+            <div className="text-gray-400">Thinking...</div>
+          )}
         </div>
-      </main>
+
+        {/* Input */}
+        <div className="p-4 border-t border-gray-800 flex gap-2">
+          <input
+            placeholder="Ask or give command..."
+            className="flex-1 p-3 bg-gray-900 border border-gray-700 rounded"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+
+          <button
+            onClick={sendMessage}
+            className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Send
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }
