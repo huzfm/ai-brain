@@ -44,8 +44,7 @@ ${message}
       }
 
       if (action.action === "calendar") {
-        const link = await createEvent(action.date, action.time);
-
+const link = await createEvent(action);
         return Response.json({
           result: "Meeting created ✅",
           meetLink: link,

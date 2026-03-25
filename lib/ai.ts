@@ -66,27 +66,38 @@ Return ONLY JSON:
 // ⚡ ACTION EXTRACTION
 // ==============================
 export async function extractAction(input: string) {
+  const today = new Date().toISOString().split("T")[0];
+
   const prompt = `
 You are an AI agent.
 
-Extract structured data from this:
+Today's date is ${today}.
+
+Convert this request into structured data:
 
 "${input}"
 
 Rules:
-- Email → action = "email"
-- Meeting → action = "calendar"
+- Convert ALL dates to format: YYYY-MM-DD
+- Convert ALL times to 24-hour format: HH:MM
+- Understand:
+  - tomorrow
+  - day after tomorrow
+  - next Monday
+  - in 2 days
+- If not present → leave empty
 - ALWAYS return valid JSON
 - NO explanation
 
 Return ONLY JSON:
 {
   "action": "email" | "calendar",
-  "to": "email if present",
-  "subject": "short subject",
-  "message": "email content",
-  "date": "YYYY-MM-DD or 'tomorrow'",
-  "time": "HH:MM (24-hour format)"
+  "to": "",
+  "subject": "",
+  "message": "",
+  "title": "",
+  "date": "YYYY-MM-DD",
+  "time": "HH:MM"
 }
 `;
 

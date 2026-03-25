@@ -13,14 +13,12 @@ auth.setCredentials({
 
 const calendar = google.calendar({ version: "v3", auth });
 
-export async function createEvent(dateStr: string, timeStr: string) {
-  const date = parseDate(dateStr);
-  const time = parseTime(timeStr);
+export async function createEvent(action: any) {
+  if (!action.date || !action.time) {
+    throw new Error("Missing date/time");
+  }
 
-  console.log("Parsed date:", date);
-  console.log("Parsed time:", time);
-
-  const start = new Date(`${date}T${time}:00`);
+  const start = new Date(`${action.date}T${action.time}:00`);
 
   if (isNaN(start.getTime())) {
     throw new Error("Invalid date/time");
@@ -29,7 +27,7 @@ export async function createEvent(dateStr: string, timeStr: string) {
   const end = new Date(start.getTime() + 60 * 60 * 1000);
 
   const event = {
-    summary: "AI Scheduled Meeting",
+    summary: action.title || "AI Meeting",
     description: "Created by AI Agent",
     start: {
       dateTime: start.toISOString(),
@@ -41,7 +39,7 @@ export async function createEvent(dateStr: string, timeStr: string) {
     },
     conferenceData: {
       createRequest: {
-        requestId: "hackathon-demo-" + Date.now(),
+        requestId: "hackathon-" + Date.now(),
         conferenceSolutionKey: { type: "hangoutsMeet" },
       },
     },
