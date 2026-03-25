@@ -6,11 +6,7 @@ export async function POST(req: Request) {
   try {
     const { message, notes } = await req.json();
 
-    console.log("Incoming:", message);
-
     const intent = await detectIntent(message);
-
-    console.log("Intent:", intent);
 
     // 🟢 QUESTION FLOW
     if (intent.type === "question") {
@@ -32,26 +28,44 @@ ${message}
       return Response.json({ answer });
     }
 
-    // 🔵 ACTION FLOW
+    // 🔵 MULTI-ACTION FLOW
     if (intent.type === "action") {
-      const action = await extractAction(message);
+      const actions = await extractAction(message);
 
-      console.log("Action:", action);
+      let results: string[] = [];
+      let meetLink = "";
 
-      if (action.action === "email") {
-        await sendEmail(action.to, action.subject, action.message);
-        return Response.json({ result: "Email sent ✅" });
+      for (const action of actions) {
+        // 📅 Calendar
+        if (action.type === "calendar") {
+          const link = await createEvent(action);
+          meetLink = link;
+          results.push("Meeting created ✅");
+        }
+
+        // ✉️ Email
+        if (action.type === "email") {
+          let msg = action.message || "Hello";
+
+          // attach meet link if exists
+          if (meetLink) {
+            msg += `\n\nJoin meeting: ${meetLink}`;
+          }
+
+          await sendEmail(
+            action.to,
+            action.subject || "AI Message",
+            msg
+          );
+
+          results.push("Email sent ✅");
+        }
       }
 
-      if (action.action === "calendar") {
-const link = await createEvent(action);
-        return Response.json({
-          result: "Meeting created ✅",
-          meetLink: link,
-        });
-      }
-
-      return Response.json({ result: "Unknown action" });
+      return Response.json({
+        result: results.join(" + "),
+        meetLink,
+      });
     }
 
     return Response.json({ answer: "I couldn't understand that." });

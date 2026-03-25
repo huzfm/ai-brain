@@ -33,15 +33,13 @@ function safeJSON(text: string) {
 // ==============================
 export async function detectIntent(input: string) {
   const prompt = `
-You are an AI classifier.
-
-Classify this:
+Classify this input:
 
 "${input}"
 
 Rules:
-- Question → "question"
-- Action request → "action"
+- If asking something → "question"
+- If asking to perform task → "action"
 
 Return ONLY JSON:
 {
@@ -51,19 +49,17 @@ Return ONLY JSON:
 
   const res = await askAI([{ role: "user", content: prompt }]);
 
-  console.log("RAW INTENT:", res);
-
   const parsed = safeJSON(res);
 
   if (!parsed || !parsed.type) {
-    return { type: "question" }; // fallback
+    return { type: "question" };
   }
 
   return parsed;
 }
 
 // ==============================
-// ⚡ ACTION EXTRACTION
+// ⚡ MULTI-ACTION EXTRACTION
 // ==============================
 export async function extractAction(input: string) {
   const today = new Date().toISOString().split("T")[0];
@@ -73,31 +69,36 @@ You are an AI agent.
 
 Today's date is ${today}.
 
-Convert this request into structured data:
+Convert this into structured actions:
 
 "${input}"
 
 Rules:
-- Convert ALL dates to format: YYYY-MM-DD
-- Convert ALL times to 24-hour format: HH:MM
-- Understand:
-  - tomorrow
-  - day after tomorrow
-  - next Monday
-  - in 2 days
-- If not present → leave empty
-- ALWAYS return valid JSON
+- You can return MULTIPLE actions
+- Supported:
+  - email
+  - calendar
+- Convert date → YYYY-MM-DD
+- Convert time → HH:MM (24-hour)
 - NO explanation
 
 Return ONLY JSON:
+
 {
-  "action": "email" | "calendar",
-  "to": "",
-  "subject": "",
-  "message": "",
-  "title": "",
-  "date": "YYYY-MM-DD",
-  "time": "HH:MM"
+  "actions": [
+    {
+      "type": "email",
+      "to": "",
+      "subject": "",
+      "message": ""
+    },
+    {
+      "type": "calendar",
+      "title": "",
+      "date": "",
+      "time": ""
+    }
+  ]
 }
 `;
 
@@ -107,57 +108,9 @@ Return ONLY JSON:
 
   const parsed = safeJSON(res);
 
-  if (!parsed || !parsed.action) {
-    throw new Error("Invalid action JSON");
+  if (!parsed || !parsed.actions) {
+    throw new Error("Invalid actions JSON");
   }
 
-  return parsed;
-}
-
-// ==============================
-// 📅 DATE PARSER
-// ==============================
-export function parseDate(dateStr: string) {
-  if (!dateStr) return "";
-
-  if (dateStr.toLowerCase() === "tomorrow") {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split("T")[0];
-  }
-
-  return dateStr;
-}
-
-// ==============================
-// ⏰ TIME PARSER
-// ==============================
-export function parseTime(timeStr: string) {
-  if (!timeStr) return "10:00";
-
-  const t = timeStr.toLowerCase().trim();
-
-  // "12" → "12:00"
-  if (/^\d{1,2}$/.test(t)) {
-    return `${t.padStart(2, "0")}:00`;
-  }
-
-  // "5pm"
-  if (t.includes("pm")) {
-    const hour = parseInt(t);
-    return `${(hour % 12) + 12}:00`;
-  }
-
-  // "5am"
-  if (t.includes("am")) {
-    const hour = parseInt(t);
-    return `${hour.toString().padStart(2, "0")}:00`;
-  }
-
-  // already valid "HH:MM"
-  if (/^\d{2}:\d{2}$/.test(t)) {
-    return t;
-  }
-
-  return "10:00"; // fallback
+  return parsed.actions;
 }
