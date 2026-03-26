@@ -1,21 +1,50 @@
 import { askAI, detectIntent, extractAction } from "@/lib/ai";
-import { sendEmail } from "../actions/gmail";
-import { createEvent } from "../actions/calendar";
+import { sendEmail } from "@/app/api/actions/gmail";
+import { createEvent } from "@/app/api/actions/calendar";
 
+// ==============================
+// ✂️ CHUNK TEXT
+// ==============================
+function chunkText(text: string, size = 2000) {
+  if (!text) return [];
+
+  const chunks = [];
+  for (let i = 0; i < text.length; i += size) {
+    chunks.push(text.slice(i, i + size));
+  }
+  return chunks;
+}
+
+// ==============================
+// 🧠 MAIN API
+// ==============================
 export async function POST(req: Request) {
   try {
     const { message, notes } = await req.json();
 
+    if (!message) {
+      return Response.json({ error: "No message" }, { status: 400 });
+    }
+
     const intent = await detectIntent(message);
 
+    // ==============================
     // 🟢 QUESTION FLOW
+    // ==============================
     if (intent.type === "question") {
+      const chunks = chunkText(notes);
+
+      // 🔥 improved context size
+      const context = chunks.slice(0, 8).join("\n");
+
       const prompt = `
-Answer ONLY using these notes:
+You are an AI assistant.
 
-${notes}
+Answer ONLY using the provided context.
+If answer is not in context, say "I don't know".
 
-If not found, say "I don't know".
+Context:
+${context}
 
 Question:
 ${message}
@@ -28,7 +57,9 @@ ${message}
       return Response.json({ answer });
     }
 
-    // 🔵 MULTI-ACTION FLOW
+    // ==============================
+    // 🔵 ACTION FLOW
+    // ==============================
     if (intent.type === "action") {
       const actions = await extractAction(message);
 
@@ -36,18 +67,20 @@ ${message}
       let meetLink = "";
 
       for (const action of actions) {
-        // 📅 Calendar
         if (action.type === "calendar") {
           const link = await createEvent(action);
           meetLink = link;
           results.push("Meeting created ✅");
         }
 
-        // ✉️ Email
         if (action.type === "email") {
+          if (!action.to) {
+            results.push("Email failed ❌");
+            continue;
+          }
+
           let msg = action.message || "Hello";
 
-          // attach meet link if exists
           if (meetLink) {
             msg += `\n\nJoin meeting: ${meetLink}`;
           }
@@ -68,13 +101,14 @@ ${message}
       });
     }
 
-    return Response.json({ answer: "I couldn't understand that." });
+    return Response.json({
+      answer: "I couldn't understand that.",
+    });
 
   } catch (e: any) {
-    console.error("API ERROR:", e);
-
+    console.error("CHAT ERROR:", e);
     return Response.json(
-      { error: e.message || "Server crashed" },
+      { error: e.message },
       { status: 500 }
     );
   }

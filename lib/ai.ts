@@ -48,14 +48,9 @@ Return ONLY JSON:
 `;
 
   const res = await askAI([{ role: "user", content: prompt }]);
-
   const parsed = safeJSON(res);
 
-  if (!parsed || !parsed.type) {
-    return { type: "question" };
-  }
-
-  return parsed;
+  return parsed?.type ? parsed : { type: "question" };
 }
 
 // ==============================
@@ -103,12 +98,9 @@ Return ONLY JSON:
 `;
 
   const res = await askAI([{ role: "user", content: prompt }]);
-
-  console.log("RAW ACTION:", res);
-
   const parsed = safeJSON(res);
 
-  if (!parsed || !parsed.actions) {
+  if (!parsed?.actions) {
     throw new Error("Invalid actions JSON");
   }
 
