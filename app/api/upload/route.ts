@@ -40,12 +40,52 @@ export async function POST(req: Request) {
       text = buffer.toString("utf-8");
     }
 
+    // ==============================
+    // EXCEL / CSV
+    // ==============================
+    else if (
+      fileName.endsWith(".xlsx") ||
+      fileName.endsWith(".xls") ||
+      fileName.endsWith(".csv")
+    ) {
+      const XLSX = require("xlsx");
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+
+      let allText = "";
+
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+        allText += `Sheet: ${sheetName}\n`;
+
+        for (const row of rows) {
+          const cleaned = row.filter(
+            (cell) => cell !== null && cell !== undefined && cell !== ""
+          );
+          if (cleaned.length > 0) {
+            allText += cleaned.join(" | ") + "\n";
+          }
+        }
+
+        allText += "\n";
+      }
+
+      text = allText;
+    }
+
+    // ==============================
+    // UNSUPPORTED
+    // ==============================
     else {
       return Response.json({ error: "Unsupported file type" }, { status: 400 });
     }
 
     if (!text || text.trim().length === 0) {
-      return Response.json({ error: "Could not extract text from file" }, { status: 400 });
+      return Response.json(
+        { error: "Could not extract text from file" },
+        { status: 400 }
+      );
     }
 
     return Response.json({ text });
